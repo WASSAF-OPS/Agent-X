@@ -1,0 +1,139 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentX AI</title>
+  <style>
+    body {
+      background: #111827;
+      color: white;
+      font-family: Arial, sans-serif;
+      max-width: 700px;
+      margin: 40px auto;
+      padding: 20px;
+    }
+    h1 { color: #60a5fa; }
+    #chat {
+      height: 400px;
+      overflow-y: auto;
+      background: #1f2937;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 15px 0;
+    }
+    input {
+      width: 75%;
+      padding: 12px;
+      border-radius: 6px;
+      border: 0;
+    }
+    button {
+      padding: 12px;
+      background: #2563eb;
+      color: white;
+      border: 0;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #status { color: #fbbf24; }
+  </style>
+</head>
+<body>
+  <h1>🤖 AgentX</h1>
+  <p>Your Personal AI Assistant</p>
+  <p id="status">Loading AI library...</p>
+
+  <div id="chat"></div>
+
+  <input id="userInput" placeholder="Ask AgentX anything...">
+  <button id="sendBtn" disabled>Send</button>
+
+  <script type="module">
+    import { CreateMLCEngine } from
+      "https://esm.run/@mlc-ai/web-llm";
+
+    const MODEL = "Llama-3.2-1B-Instruct-q4f16_1-MLC";
+    const status = document.getElementById("status");
+    const chat = document.getElementById("chat");
+    const input = document.getElementById("userInput");
+    const sendBtn = document.getElementById("sendBtn");
+
+    let engine;
+    let messages = [
+      {
+        role: "system",
+        content: "You are AgentX, a helpful AI assistant. Always reply in clear, simple English. Be accurate and concise."
+      }
+    ];
+
+    function addMessage(role, text) {
+      const p = document.createElement("p");
+      const strong = document.createElement("strong");
+      strong.textContent = role + ": ";
+      p.appendChild(strong);
+      p.appendChild(document.createTextNode(text));
+      chat.appendChild(p);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    async function startAI() {
+      try {
+        engine = await CreateMLCEngine(MODEL, {
+          initProgressCallback: (progress) => {
+            status.textContent = progress.text;
+          }
+        });
+
+        status.textContent = "AgentX is ready!";
+        sendBtn.disabled = false;
+
+      } catch (error) {
+        status.textContent =
+          "AI could not start. Check WebGPU and browser support.";
+        console.error(error);
+      }
+    }
+
+    async function sendMessage() {
+      const question = input.value.trim();
+      if (!question || !engine) return;
+
+      input.value = "";
+      sendBtn.disabled = true;
+
+      messages.push({ role: "user", content: question });
+      addMessage("You", question);
+      status.textContent = "AgentX is thinking...";
+
+      try {
+        const response = await engine.chat.completions.create({
+          messages: messages,
+          temperature: 0.7,
+          max_tokens: 300
+        });
+
+        const answer = response.choices[0].message.content;
+        messages.push({ role: "assistant", content: answer });
+        addMessage("AgentX", answer);
+        status.textContent = "AgentX is ready!";
+
+      } catch (error) {
+        status.textContent = "Something went wrong.";
+        console.error(error);
+      }
+
+      sendBtn.disabled = false;
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") sendMessage();
+    });
+
+    startAI();
+  </script>
+</body>
+</html>
